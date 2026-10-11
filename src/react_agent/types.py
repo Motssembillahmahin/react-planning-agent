@@ -99,6 +99,7 @@ class Critique(BaseModel):
 
     accepted: bool
     reason: str
+    tokens_used: int = Field(ge=0, default=0)
 
 
 class AgentResult(BaseModel):
