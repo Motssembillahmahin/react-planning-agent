@@ -1,0 +1,400 @@
+# Evaluation tasks. Each task carries a fixed script for ScriptedLLM: the model's outputs
+# are replayed in order no matter what the agent observes, so every run is deterministic.
+#
+# expected.status: statuses that count as correct behaviour.
+# expected.answer: checked only when the run ends with status "success".
+# A run must also terminate through the agent's own logic (not the 50-step safety cap).
+
+tasks:
+  # ------------------------------------------------------------------ solvable (10)
+  - id: solv-arith
+    category: solvable
+    task: "What is 17 * 23 + 4?"
+    tools: [calculator]
+    script:
+      - {thought: "Compute it.", action: {tool: calculator, args: {expression: "17 * 23 + 4"}}}
+      - {thought: "Done.", final_answer: "395"}
+    expected: {status: [success], answer: "395"}
+
+  - id: solv-temp
+    category: solvable
+    task: "Convert 100 degrees Celsius to Fahrenheit."
+    tools: [unit_converter]
+    script:
+      - {action: {tool: unit_converter, args: {value: 100, from_unit: C, to_unit: F}}}
+      - {final_answer: "100 °C is 212 °F."}
+    expected: {status: [success], answer: "212"}
+
+  - id: solv-eiffel
+    category: solvable
+    task: "How tall is the Eiffel Tower?"
+    tools: [search]
+    script:
+      - {action: {tool: search, args: {query: "Eiffel Tower height"}}}
+      - {final_answer: "The Eiffel Tower is 330 metres tall."}
+    expected: {status: [success], answer: "330"}
+
+  - id: solv-ratio
+    category: solvable
+    task: "How many times taller is Mount Everest than the Burj Khalifa?"
+    tools: [search, calculator]
+    script:
+      - {action: {tool: search, args: {query: "Mount Everest elevation"}}}
+      - {action: {tool: search, args: {query: "Burj Khalifa"}}}
+      - {action: {tool: calculator, args: {expression: "8849 / 828"}}}
+      - {final_answer: "Mount Everest is about 10.69 times taller than the Burj Khalifa."}
+    expected: {status: [success], answer: "10.69"}
+
+  - id: solv-office
+    category: solvable
+    task: "In which city is the office located?"
+    tools: [facts]
+    note: "The first model output is not JSON; the loop must recover."
+    script:
+      - "I should look this up in the fact store."
+      - {action: {tool: facts, args: {op: get, key: office_city}}}
+      - {final_answer: "Lisbon"}
+    expected: {status: [success], answer: "Lisbon"}
+
+  - id: solv-boil-premature
+    category: solvable
+    task: "What is the boiling point of water at sea level in Fahrenheit?"
+    tools: [search, unit_converter]
+    note: "The model first answers from memory with a wrong number; the critic should reject it."
+    script:
+      - {thought: "I remember this.", final_answer: "200 °F"}
+      - {action: {tool: unit_converter, args: {value: 100, from_unit: celsius, to_unit: fahrenheit}}}
+      - {final_answer: "Water boils at 212 °F at sea level."}
+    expected: {status: [success], answer: "212"}
+
+  - id: solv-percent-premature
+    category: solvable
+    task: "What is 15% of 240?"
+    tools: [calculator]
+    note: "Premature wrong answer, then a correct computed one."
+    script:
+      - {final_answer: "32"}
+      - {action: {tool: calculator, args: {expression: "0.15 * 240"}}}
+      - {final_answer: "36"}
+    expected: {status: [success], answer: "36"}
+
+  - id: solv-years
+    category: solvable
+    task: "How many years passed between the completion of the Eiffel Tower and the Apollo 11 Moon landing?"
+    tools: [search, calculator]
+    script:
+      - {action: {tool: search, args: {query: "Eiffel Tower completed"}}}
+      - {action: {tool: search, args: {query: "Apollo 11 Moon landing"}}}
+      - {action: {tool: calculator, args: {expression: "1969 - 1889"}}}
+      - {final_answer: "80 years"}
+    expected: {status: [success], answer: "80"}
+
+  - id: solv-budget
+    category: solvable
+    task: "What is the budget per team member in euros?"
+    tools: [facts, calculator]
+    script:
+      - {action: {tool: facts, args: {op: get, key: budget_eur}}}
+      - {action: {tool: facts, args: {op: get, key: team_size}}}
+      - {action: {tool: calculator, args: {expression: "48000 / 12"}}}
+      - {final_answer: "4000 EUR per team member"}
+    expected: {status: [success], answer: "4000"}
+
+  - id: solv-marathon
+    category: solvable
+    task: "How long is a marathon in miles?"
+    tools: [search, unit_converter]
+    script:
+      - {action: {tool: search, args: {query: "marathon distance"}}}
+      - {action: {tool: unit_converter, args: {value: 42.195, from_unit: km, to_unit: mi}}}
+      - {final_answer: "A marathon is about 26.2 miles."}
+    expected: {status: [success], answer: "26.2"}
+
+  # ------------------------------------------------------------------ unsolvable (8)
+  - id: unsolv-atlantis
+    category: unsolvable
+    task: "What was the population of Atlantis in 1200 BC?"
+    tools: [search]
+    note: "The model keeps inventing numbers that no observation supports."
+    script:
+      - {action: {tool: search, args: {query: "Atlantis population"}}}
+      - {final_answer: "About 20000 people."}
+      - {final_answer: "Roughly 15000 people."}
+      - {final_answer: "Around 18000 people."}
+    expected: {status: [abstained]}
+
+  - id: unsolv-ceo
+    category: unsolvable
+    task: "What is the CEO's name?"
+    tools: [facts]
+    note: "Honest model: abstains on its own."
+    script:
+      - {action: {tool: facts, args: {op: get, key: ceo}}}
+      - {abstain: "No CEO is recorded in the fact store."}
+    expected: {status: [abstained]}
+
+  - id: unsolv-fx
+    category: unsolvable
+    task: "What will the EUR/USD exchange rate be next year?"
+    tools: [search]
+    script:
+      - {action: {tool: search, args: {query: "EUR USD exchange rate forecast"}}}
+      - {abstain: "Future exchange rates cannot be known from the available tools."}
+    expected: {status: [abstained]}
+
+  - id: unsolv-jupiter-moons
+    category: unsolvable
+    task: "How many moons does Jupiter have according to the encyclopedia?"
+    tools: [search]
+    script:
+      - {action: {tool: search, args: {query: "Jupiter moons"}}}
+      - {final_answer: "Jupiter has 79 moons."}
+      - {final_answer: "Jupiter has 95 moons."}
+      - {final_answer: "Jupiter has 92 moons."}
+    expected: {status: [abstained]}
+
+  - id: unsolv-avg-age
+    category: unsolvable
+    task: "What is the team's average age?"
+    tools: [facts]
+    script:
+      - {action: {tool: facts, args: {op: list}}}
+      - {action: {tool: facts, args: {op: get, key: average_age}}}
+      - {final_answer: "The average age is 31."}
+      - {final_answer: "31 years"}
+      - {final_answer: "About 31."}
+    expected: {status: [abstained]}
+
+  - id: unsolv-painter
+    category: unsolvable
+    task: "Who painted the Eiffel Tower's first coat of paint?"
+    tools: [search]
+    script:
+      - {action: {tool: search, args: {query: "Eiffel Tower paint"}}}
+      - {final_answer: "Gustave Eiffel"}
+      - {final_answer: "Gustave Eiffel's workers"}
+      - {final_answer: "Gustave Eiffel"}
+    expected: {status: [abstained]}
+
+  - id: unsolv-neptune-sqrt
+    category: unsolvable
+    task: "What is the square root of the number of moons of Neptune listed in the encyclopedia?"
+    tools: [search, calculator]
+    note: >-
+      Known critic blind spot: the model plugs a remembered number into the calculator,
+      so the final answer is grounded in a tool output even though its input was invented.
+    script:
+      - {action: {tool: search, args: {query: "Neptune moons"}}}
+      - {action: {tool: calculator, args: {expression: "sqrt(16)"}}}
+      - {final_answer: "4"}
+    expected: {status: [abstained]}
+
+  - id: unsolv-olympus
+    category: unsolvable
+    task: "What is the elevation of Olympus Mons on Mars?"
+    tools: [search]
+    script:
+      - {action: {tool: search, args: {query: "Olympus Mons elevation"}}}
+      - {final_answer: "21900 metres"}
+      - {abstain: "The encyclopedia has no entry on Olympus Mons."}
+    expected: {status: [abstained]}
+
+  # ------------------------------------------------------------------ loop-inducing (8)
+  - id: loop-same-calc
+    category: loop-inducing
+    task: "What is 2 + 2?"
+    tools: [calculator]
+    script:
+      - {thought: "Let me compute.", action: {tool: calculator, args: {expression: "2 + 2"}}}
+    on_exhausted: repeat_last
+    expected: {status: [abstained, failed, partial]}
+
+  - id: loop-same-search
+    category: loop-inducing
+    task: "Where does the Mona Lisa hang?"
+    tools: [search]
+    script:
+      - {action: {tool: search, args: {query: "Mona Lisa"}}}
+    on_exhausted: repeat_last
+    expected: {status: [abstained, failed, partial]}
+
+  - id: loop-alternating
+    category: loop-inducing
+    task: "Which is deeper, Lake Baikal or the Pacific Ocean?"
+    tools: [search]
+    script:
+      - {action: {tool: search, args: {query: "Lake Baikal depth"}}}
+      - {action: {tool: search, args: {query: "Pacific Ocean depth"}}}
+    on_exhausted: cycle
+    expected: {status: [abstained, failed, partial]}
+
+  - id: loop-varying-queries
+    category: loop-inducing
+    task: "Find the unicorn population of Scotland."
+    tools: [search]
+    note: "Each query differs, so only the no-progress detector can see the loop."
+    script:
+      - {action: {tool: search, args: {query: "unicorn population 1"}}}
+      - {action: {tool: search, args: {query: "unicorn population 2"}}}
+      - {action: {tool: search, args: {query: "unicorn population 3"}}}
+      - {action: {tool: search, args: {query: "unicorn population 4"}}}
+      - {action: {tool: search, args: {query: "unicorn population 5"}}}
+      - {action: {tool: search, args: {query: "unicorn population 6"}}}
+      - {action: {tool: search, args: {query: "unicorn population 7"}}}
+    on_exhausted: cycle
+    expected: {status: [abstained, failed, partial]}
+
+  - id: loop-garbage
+    category: loop-inducing
+    task: "Summarise the history of Paris."
+    tools: [search]
+    note: "The model never produces valid JSON."
+    script:
+      - "Paris has a long history... let me think about it more."
+    on_exhausted: repeat_last
+    expected: {status: [abstained, failed, partial]}
+
+  - id: loop-same-answer
+    category: loop-inducing
+    task: "What is the answer to life, the universe and everything?"
+    tools: [search]
+    script:
+      - {final_answer: "999"}
+    on_exhausted: repeat_last
+    expected: {status: [abstained, failed, partial]}
+
+  - id: loop-fact-get
+    category: loop-inducing
+    task: "What is the project codename?"
+    tools: [facts]
+    script:
+      - {action: {tool: facts, args: {op: get, key: project_codename}}}
+    on_exhausted: repeat_last
+    expected: {status: [abstained, failed, partial]}
+
+  - id: loop-normalized-args
+    category: loop-inducing
+    task: "Convert 5 km to miles."
+    tools: [unit_converter]
+    note: "Arguments differ only in formatting; normalisation makes them the same action."
+    script:
+      - {action: {tool: unit_converter, args: {value: 5, from_unit: km, to_unit: mi}}}
+      - {action: {tool: unit_converter, args: {value: 5.0, from_unit: " KM", to_unit: "MI "}}}
+    on_exhausted: cycle
+    expected: {status: [abstained, failed, partial]}
+
+  # ------------------------------------------------------------------ tool-failure (10)
+  - id: fail-flaky-retry
+    category: tool-failure
+    task: "What is 17 * 23 + 4?"
+    tools: [{name: calculator, fault: flaky, p: 0.5, seed: 7}]
+    note: "Seed 7 fails twice, then succeeds: retries recover."
+    script:
+      - {action: {tool: calculator, args: {expression: "17 * 23 + 4"}}}
+      - {final_answer: "395"}
+    expected: {status: [success], answer: "395"}
+
+  - id: fail-flaky-fallback
+    category: tool-failure
+    task: "How tall is Mount Kilimanjaro?"
+    tools:
+      - {name: search, fault: flaky, p: 0.7, seed: 4, fallback: search_backup}
+      - {name: search_backup, base: search}
+    note: "Seed 4 fails all three attempts; the fallback answers."
+    script:
+      - {action: {tool: search, args: {query: "Mount Kilimanjaro"}}}
+      - {final_answer: "Mount Kilimanjaro is 5895 metres high."}
+    expected: {status: [success], answer: "5895"}
+
+  - id: fail-always-fallback
+    category: tool-failure
+    task: "What is 6 * 7?"
+    tools:
+      - {name: calculator, fault: always_fail, fallback: calc_backup}
+      - {name: calc_backup, base: calculator}
+    script:
+      - {action: {tool: calculator, args: {expression: "6 * 7"}}}
+      - {final_answer: "42"}
+    expected: {status: [success], answer: "42"}
+
+  - id: fail-slow-fallback
+    category: tool-failure
+    task: "How deep is Lake Baikal?"
+    tools:
+      - {name: search, fault: slow, delay_s: 0.5, fallback: search_backup}
+      - {name: search_backup, base: search}
+    script:
+      - {action: {tool: search, args: {query: "Lake Baikal depth"}}}
+      - {final_answer: "Lake Baikal is 1642 metres deep."}
+    expected: {status: [success], answer: "1642"}
+
+  - id: fail-slow-calc-fallback
+    category: tool-failure
+    task: "What is 2 to the power of 10?"
+    tools:
+      - {name: calculator, fault: slow, delay_s: 0.5, fallback: calc_backup}
+      - {name: calc_backup, base: calculator}
+    script:
+      - {action: {tool: calculator, args: {expression: "2 ** 10"}}}
+      - {final_answer: "1024"}
+    expected: {status: [success], answer: "1024"}
+
+  - id: fail-search-down
+    category: tool-failure
+    task: "How tall is the Eiffel Tower?"
+    tools: [{name: search, fault: always_fail}]
+    note: "No fallback. Answering anyway would be an unsupported guess."
+    script:
+      - {action: {tool: search, args: {query: "Eiffel Tower height"}}}
+      - {action: {tool: search, args: {query: "Eiffel Tower"}}}
+      - {action: {tool: search, args: {query: "Eiffel Tower metres"}}}
+      - {final_answer: "330 metres"}
+    expected: {status: [failed, abstained, partial]}
+
+  - id: fail-facts-down
+    category: tool-failure
+    task: "How large is the team?"
+    tools: [{name: facts, fault: always_fail}]
+    script:
+      - {action: {tool: facts, args: {op: get, key: team_size}}}
+      - {action: {tool: facts, args: {op: get, key: team}}}
+      - {action: {tool: facts, args: {op: get, key: headcount}}}
+      - {final_answer: "12 people"}
+    expected: {status: [failed, abstained, partial]}
+
+  - id: fail-unknown-tool
+    category: tool-failure
+    task: "What is the weather in Lisbon today?"
+    tools: [search]
+    note: "The model calls a tool that does not exist."
+    script:
+      - {action: {tool: weather, args: {city: Lisbon}}}
+      - {action: {tool: weather, args: {city: "Lisbon, PT"}}}
+      - {action: {tool: weather_api, args: {q: Lisbon}}}
+      - {final_answer: "Sunny, 24 degrees."}
+    expected: {status: [failed, abstained, partial]}
+
+  - id: fail-misleading-search
+    category: tool-failure
+    task: "How tall is the Burj Khalifa?"
+    tools: [{name: search, fault: misleading}]
+    note: >-
+      Known critic blind spot: the tool returns a plausible wrong number and the answer
+      is grounded in it, so the critic accepts it.
+    script:
+      - {action: {tool: search, args: {query: "Burj Khalifa"}}}
+      - {final_answer: "The Burj Khalifa is 910 metres tall."}
+    expected: {status: [success], answer: "828"}
+
+  - id: fail-misleading-units
+    category: tool-failure
+    task: "Convert 100 degrees Celsius to Fahrenheit."
+    tools: [{name: unit_converter, fault: misleading}]
+    note: >-
+      The converter lies (233 F); the model answers 212 from memory. Either the true answer
+      or refusing to answer against conflicting evidence counts as correct.
+    script:
+      - {action: {tool: unit_converter, args: {value: 100, from_unit: C, to_unit: F}}}
+      - {final_answer: "212 °F"}
+      - {final_answer: "212 °F"}
+    expected: {status: [success, abstained], answer: "212"}

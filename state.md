@@ -11,6 +11,9 @@ and are pushed (see `checks.md` once written).
 - Local: /home/pulok/Documents/react-planning-agent
 - Scaffolding: `pyproject.toml`, `uv.lock`, `Makefile`, `.python-version`
 - Anchor docs: `CLAUDE.md`, `AGENTS.md`, `vision.md`, `state.md`
+- Package: `src/react_agent/{types,trace,prompts,baseline,evaluation}.py`, `src/react_agent/llm/`, `src/react_agent/tools/`, `src/react_agent/data/corpus.json`
+- Eval: `evals/tasks.yaml` (36 tasks), `evals/results.md`, `evals/results.json`
+- Tests: `tests/test_llm_scripted.py`, `tests/test_tools.py`, `tests/test_baseline_trace.py`, `tests/test_evaluation.py`
 
 ## Completed stages + observed check results
 1. Preflight — `gh auth status`: logged in as Motssembillahmahin (scopes repo, workflow).
@@ -18,6 +21,16 @@ and are pushed (see `checks.md` once written).
    `uv --version`: 0.11.19. `gh repo view .../react-planning-agent`: not found → name free.
 2. Initial commit (.gitignore, LICENSE, stub README) + `gh repo create --public --push`: ok.
 3. Scaffolding: `uv sync` ok.
+4. Core types + LLM interface + ScriptedLLM + parser: tests pass, ruff/mypy clean.
+5. Tools (calculator, unit converter, search, fact store), executor (retry/backoff/timeout/fallback),
+   fault wrappers (flaky, always_fail, slow, misleading): tests pass.
+6. Tracer, prompts, NaiveReActAgent: tests pass.
+7. Eval harness + 36 tasks (10 solvable, 8 unsolvable, 8 loop-inducing, 10 tool-failure).
+   **Baseline numbers (naive, recorded before the guarded agent exists):**
+   termination 80.6%, task success 44.4%, correct abstention 25.0%, mean iterations 11.69,
+   mean tokens 11038.7, safety-cap hits on loop tasks 7/8 (the 8th, loop-same-answer, returns
+   its first unsupported answer). Success by category: solvable 80%, unsolvable 25%,
+   loop-inducing 0%, tool-failure 60%.
 
 ## Decisions + reasons
 - Repo name `react-planning-agent` (did not exist).
@@ -26,8 +39,15 @@ and are pushed (see `checks.md` once written).
 - Eval harness lives in the package (`react_agent.evaluation`) so it is typed,
   linted and covered; `make eval` calls it as a module.
 
+- Correctness requires termination; expected answers are checked only on `success`.
+- Scripts are fixed (the model does not react to observations), so the naive baseline can be
+  "lucky" on recoverable tool failures (it answers correctly despite seeing an error). Kept as is
+  and listed as a limitation rather than tuning scripts to flatter the guarded agent.
+- Two tasks deliberately expose critic blind spots (unsolv-neptune-sqrt, fail-misleading-search).
+- Flaky seeds chosen by enumeration: p=0.5 seed 7 = fail, fail, ok; p=0.7 seed 4 = fail x3.
+
 ## Open issues
 - none
 
 ## Next action
-Implement core types, LLM interface, ScriptedLLM and response parsing with tests.
+Implement the termination guards (`src/react_agent/guards.py`) with unit tests.
