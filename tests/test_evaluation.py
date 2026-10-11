@@ -136,3 +136,30 @@ def test_headline_claims_hold_for_all_variants() -> None:
     assert summary["full"]["success_rate"] > summary["no_critic"]["success_rate"]
     assert summary["full"]["success_rate"] > summary["naive"]["success_rate"]
     assert summary["full"]["mean_iterations"] < summary["no_progress_detector"]["mean_iterations"]
+
+
+def test_main_live_provider_without_key_is_skipped(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    for var in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "OPENAI_BASE_URL"):
+        monkeypatch.delenv(var, raising=False)
+    assert ev.main(["--tasks", str(TASKS), "--out", str(tmp_path), "--provider", "auto"]) == 0
+    assert "eval-real skipped: set ANTHROPIC_API_KEY" in capsys.readouterr().out
+    assert ev.main(["--tasks", str(TASKS), "--out", str(tmp_path), "--provider", "anthropic"]) == 0
+    assert "ANTHROPIC_API_KEY is not set" in capsys.readouterr().out
+    assert not (tmp_path / "results.md").exists()
+
+
+def test_main_live_provider_with_fake_llm(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    from react_agent.llm import ScriptedLLM
+
+    def fake_make_llm(provider: str, model: str | None = None) -> ScriptedLLM:
+        llm = ScriptedLLM([{"abstain": "offline fake"}], on_exhausted="repeat_last")
+        llm.name = "fake"
+        return llm
+
+    monkeypatch.setattr(ev, "make_llm", fake_make_llm)
+    rc = ev.main(["--tasks", str(TASKS), "--out", str(tmp_path), "--trace-dir", str(tmp_path / "t"),
+                  "--provider", "openai", "--variants", "full"])  # fmt: skip
+    assert rc == 0
+    assert "live provider" in (tmp_path / "results.md").read_text()
