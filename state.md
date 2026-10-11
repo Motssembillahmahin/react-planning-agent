@@ -31,6 +31,9 @@ and are pushed (see `checks.md` once written).
    mean tokens 11038.7, safety-cap hits on loop tasks 7/8 (the 8th, loop-same-answer, returns
    its first unsupported answer). Success by category: solvable 80%, unsolvable 25%,
    loop-inducing 0%, tool-failure 60%.
+8. Guards (`src/react_agent/guards.py`, `src/react_agent/config.py`): max_iterations, token budget,
+   timeout (injected clock), repeated-action (normalised fingerprint, sliding window),
+   no-progress, tool error budget; each disabled by setting it to None. `tests/test_guards.py` passes.
 
 ## Decisions + reasons
 - Repo name `react-planning-agent` (did not exist).
@@ -50,4 +53,4 @@ and are pushed (see `checks.md` once written).
 - none
 
 ## Next action
-Implement the termination guards (`src/react_agent/guards.py`) with unit tests.
+Implement the critic (`src/react_agent/critic.py`): EvidenceCritic + LLMCritic + tests.
