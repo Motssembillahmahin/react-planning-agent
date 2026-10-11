@@ -56,7 +56,6 @@ class NaiveReActAgent:
                 reason=reason,
                 iterations=calls,
                 tokens_used=tokens,
-                llm_calls=calls,
                 tool_errors=tool_errors,
                 elapsed_s=round(time.monotonic() - started, 4),
                 trace_path=str(self.trace_path) if self.trace_path else None,

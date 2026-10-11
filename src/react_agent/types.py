@@ -111,7 +111,6 @@ class AgentResult(BaseModel):
     reason: str
     iterations: int = Field(ge=0)
     tokens_used: int = Field(ge=0, default=0)
-    llm_calls: int = Field(ge=0, default=0)
     tool_errors: int = Field(ge=0, default=0)
     critic_rejections: int = Field(ge=0, default=0)
     elapsed_s: float = Field(ge=0.0, default=0.0)

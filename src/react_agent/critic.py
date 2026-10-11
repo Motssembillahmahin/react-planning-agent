@@ -15,33 +15,8 @@ from typing import Protocol
 
 from react_agent.llm.base import LLM, LLMError
 from react_agent.prompts import build_critic_messages
+from react_agent.text import content_words, numbers
 from react_agent.types import Critique
-
-_NUMBER = re.compile(r"\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?")
-_WORD = re.compile(r"[a-z][a-z']*")
-_FILLER_TEXT = (
-    "the a an and or of to in on at by for from with is are was were be been it its this that "
-    "about approximately roughly around nearly almost some times than per answer result "
-    "which who what when where there their they has have had high tall long deep"
-)
-_FILLER = frozenset(_FILLER_TEXT.split())
-
-
-def _numbers(text: str) -> list[str]:
-    return [m.replace(",", "") for m in _NUMBER.findall(text)]
-
-
-def _stem(word: str) -> str:
-    word = word.removesuffix("'s").strip("'")
-    for suffix in ("ing", "ed", "es", "s"):
-        if word.endswith(suffix) and len(word) - len(suffix) >= 3:
-            return word[: -len(suffix)]
-    return word
-
-
-def _content_words(text: str) -> set[str]:
-    words = (_stem(w) for w in _WORD.findall(text.lower()))
-    return {w for w in words if len(w) >= 3 and w not in _FILLER}
 
 
 def _number_grounded(number: str, sources: list[float]) -> bool:
@@ -70,16 +45,16 @@ class EvidenceCritic:
                 reason="no successful tool observation supports the answer; gather evidence first",
             )
         corpus = "\n".join(evidence)
-        known_numbers = [float(n) for n in _numbers(f"{task}\n{corpus}")]
-        ungrounded = [n for n in _numbers(answer) if not _number_grounded(n, known_numbers)]
+        known_numbers = [float(n) for n in numbers(f"{task}\n{corpus}")]
+        ungrounded = [n for n in numbers(answer) if not _number_grounded(n, known_numbers)]
         if ungrounded:
             return Critique(
                 accepted=False,
                 reason=f"number(s) {', '.join(ungrounded)} do not appear in any observation",
             )
-        novel = _content_words(answer) - _content_words(task)
+        novel = content_words(answer) - content_words(task)
         if novel:
-            supported = novel & _content_words(corpus)
+            supported = novel & content_words(corpus)
             if len(supported) / len(novel) < self.min_word_support:
                 missing = ", ".join(sorted(novel - supported))
                 return Critique(
