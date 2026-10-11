@@ -213,7 +213,3 @@ evals/tasks.yaml  36 scripted tasks
 [`vision.md`](vision.md) (what this proves and does not), [`state.md`](state.md) (build log and
 decisions), [`CLAUDE.md`](CLAUDE.md) / [`AGENTS.md`](AGENTS.md) (conventions for agents),
 [`checks.md`](checks.md) (acceptance checks).
-
-## License
-
-MIT
