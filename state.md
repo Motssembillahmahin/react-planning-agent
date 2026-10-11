@@ -34,6 +34,15 @@ and are pushed (see `checks.md` once written).
 8. Guards (`src/react_agent/guards.py`, `src/react_agent/config.py`): max_iterations, token budget,
    timeout (injected clock), repeated-action (normalised fingerprint, sliding window),
    no-progress, tool error budget; each disabled by setting it to None. `tests/test_guards.py` passes.
+9. Critic (`src/react_agent/critic.py`): EvidenceCritic (default), LLMCritic, CompositeCritic.
+10. ReActAgent (`src/react_agent/agent.py`): explicit state machine; every transition traced.
+    Property test (`tests/test_property.py`): 300 passing examples; a deliberate off-by-one in
+    MaxIterationsGuard makes it fail (mutation check), then restored.
+    `make lint typecheck test`: all pass, coverage 99.9%.
+11. Ablation eval (`make eval`): full 100% termination / 94.4% success / 87.5% correct abstention /
+    2.83 mean iterations; no_critic 72.2% success, 25% abstention; no_repeat_detector 94.4%
+    (2.94 it.); no_progress_detector 94.4% (3.33 it.); naive 80.6% termination, 7/8 loop tasks hit
+    the 50-step cap. Re-running gives byte-identical results.json.
 
 ## Decisions + reasons
 - Repo name `react-planning-agent` (did not exist).
@@ -47,10 +56,19 @@ and are pushed (see `checks.md` once written).
   "lucky" on recoverable tool failures (it answers correctly despite seeing an error). Kept as is
   and listed as a limitation rather than tuning scripts to flatter the guarded agent.
 - Two tasks deliberately expose critic blind spots (unsolv-neptune-sqrt, fail-misleading-search).
+- Status mapping: model abstain / critic cap → abstained; any guard with a candidate answer →
+  partial; repeated-action / no-progress without one → abstained; resource guards → failed.
+- Reflection is deterministic: a step adds information iff a successful observation contains
+  content words/numbers not seen before (task + earlier observations), excluding echoes of the
+  action's own args. Not LLM-based, so it is cheap and testable.
+- Critic rejections do not count toward the no-progress streak; the rejection cap bounds them.
+- llm_calls field dropped from AgentResult (ambiguous with an LLM critic); bound is asserted on
+  ScriptedLLM.calls in the property test instead.
 - Flaky seeds chosen by enumeration: p=0.5 seed 7 = fail, fail, ok; p=0.7 seed 4 = fail x3.
 
 ## Open issues
-- none
+- Repeated-action and no-progress detectors overlap on this task set (either alone catches every
+  loop); the ablation shows only an iteration/token cost. Reported honestly in the README.
 
 ## Next action
-Implement the critic (`src/react_agent/critic.py`): EvidenceCritic + LLMCritic + tests.
+Add AnthropicLLM and OpenAICompatibleLLM (env-var keys, fake-client tests), then the CLI.

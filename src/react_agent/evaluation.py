@@ -16,12 +16,13 @@ from typing import Any, Literal, Protocol
 import yaml
 from pydantic import BaseModel, Field
 
+from react_agent.agent import ReActAgent
 from react_agent.baseline import NaiveReActAgent
+from react_agent.config import AgentConfig
 from react_agent.llm.base import LLM
 from react_agent.llm.scripted import OnExhausted, ScriptedLLM
 from react_agent.tools import (
     FactStore,
-    RetryPolicy,
     Tool,
     ToolRegistry,
     always_fail,
@@ -40,8 +41,8 @@ CATEGORIES: tuple[Category, ...] = ("solvable", "unsolvable", "loop-inducing", "
 BaseTool = Literal["calculator", "unit_converter", "search", "facts"]
 Fault = Literal["none", "flaky", "always_fail", "slow", "misleading"]
 
-# Tool timeout used by guarded variants in the eval; slow tools sleep longer than this.
-EVAL_RETRY_POLICY = RetryPolicy(max_retries=2, backoff_s=0.0, timeout_s=0.2)
+# Guarded variants use a 0.2s tool timeout in the eval; slow tools sleep longer than this.
+EVAL_CONFIG = AgentConfig(tool_backoff_s=0.0, tool_timeout_s=0.2)
 
 
 class ToolSpec(BaseModel):
@@ -122,7 +123,22 @@ def _naive(llm: LLM, tools: ToolRegistry, trace: Path | None) -> Runner:
     return NaiveReActAgent(llm, tools, trace_path=trace)
 
 
-VARIANTS: dict[str, AgentFactory] = {"naive": _naive}
+def _guarded(**overrides: Any) -> AgentFactory:
+    config = EVAL_CONFIG.model_copy(update=overrides)
+
+    def factory(llm: LLM, tools: ToolRegistry, trace: Path | None) -> Runner:
+        return ReActAgent(llm, tools, config, trace_path=trace)
+
+    return factory
+
+
+VARIANTS: dict[str, AgentFactory] = {
+    "full": _guarded(),
+    "no_critic": _guarded(critic_enabled=False),
+    "no_repeat_detector": _guarded(repeat_threshold=None),
+    "no_progress_detector": _guarded(no_progress_patience=None),
+    "naive": _naive,
+}
 
 
 _NUM = re.compile(r"-?\d[\d,]*(?:\.\d+)?")

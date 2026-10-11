@@ -117,3 +117,22 @@ def test_main_writes_results_and_rejects_unknown_variant(
     assert "Evaluation results" in capsys.readouterr().out
     with pytest.raises(SystemExit):
         ev.main(["--tasks", str(TASKS), "--variants", "bogus"])
+
+
+def test_headline_claims_hold_for_all_variants() -> None:
+    tasks = ev.load_tasks(TASKS)
+    summary = ev.summarize(ev.run_eval(tasks, ev.VARIANTS))
+    assert list(summary) == [
+        "full",
+        "no_critic",
+        "no_repeat_detector",
+        "no_progress_detector",
+        "naive",
+    ]
+    for guarded in ("full", "no_critic", "no_repeat_detector", "no_progress_detector"):
+        assert summary[guarded]["termination_rate"] == 1.0
+        assert summary[guarded]["safety_cap_hits_on_loop_tasks"] == 0
+    assert summary["naive"]["safety_cap_hits_on_loop_tasks"] >= summary["naive"]["loop_tasks"] - 1
+    assert summary["full"]["success_rate"] > summary["no_critic"]["success_rate"]
+    assert summary["full"]["success_rate"] > summary["naive"]["success_rate"]
+    assert summary["full"]["mean_iterations"] < summary["no_progress_detector"]["mean_iterations"]
