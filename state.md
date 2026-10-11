@@ -13,7 +13,9 @@ and are pushed (see `checks.md` once written).
 - Anchor docs: `CLAUDE.md`, `AGENTS.md`, `vision.md`, `state.md`
 - Package: `src/react_agent/{types,trace,prompts,baseline,evaluation}.py`, `src/react_agent/llm/`, `src/react_agent/tools/`, `src/react_agent/data/corpus.json`
 - Eval: `evals/tasks.yaml` (36 tasks), `evals/results.md`, `evals/results.json`
-- Tests: `tests/test_llm_scripted.py`, `tests/test_tools.py`, `tests/test_baseline_trace.py`, `tests/test_evaluation.py`
+- Tests: `tests/test_{llm_scripted,tools,baseline_trace,evaluation,guards,critic,agent,property,providers,cli,docs}.py`
+- CLI/demo: `src/react_agent/cli.py`, `examples/demo_script.json`; CI: `.github/workflows/ci.yml`
+- Acceptance: `checks.md`
 
 ## Completed stages + observed check results
 1. Preflight — `gh auth status`: logged in as Motssembillahmahin (scopes repo, workflow).
@@ -52,6 +54,8 @@ and are pushed (see `checks.md` once written).
     tag) → pinned v10.3.0 → green (run 38113686142). Runner pinned to ubuntu-24.04.
 15. README with all required sections; `tests/test_docs.py` keeps its ablation table identical
     to `evals/results.md`. README tool snippet executed end to end successfully.
+16. Acceptance checks (`checks.md`): all 8 pass. Clean clone `make install lint typecheck test eval`
+    exit 0, coverage 99.93%, 153 tests, property test 300 passing, CI run 38113816274 green.
 
 ## Decisions + reasons
 - Repo name `react-planning-agent` (did not exist).
@@ -80,8 +84,9 @@ and are pushed (see `checks.md` once written).
 - Flaky seeds chosen by enumeration: p=0.5 seed 7 = fail, fail, ok; p=0.7 seed 4 = fail x3.
 
 ## Open issues
+- `make eval-real` never run (by instruction); providers untested against live APIs.
 - Repeated-action and no-progress detectors overlap on this task set (either alone catches every
   loop); the ablation shows only an iteration/token cost. Reported honestly in the README.
 
 ## Next action
-Run the acceptance checks on a clean clone and write `checks.md`.
+Done. If resuming: add tasks that separate the repeat and no-progress detectors, or run `make eval-real` with a key (costs money).
