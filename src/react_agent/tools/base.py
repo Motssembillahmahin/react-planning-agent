@@ -117,10 +117,12 @@ class ToolExecutor:
         policy: RetryPolicy | None = None,
         *,
         sleep: Callable[[float], None] = time.sleep,
+        use_fallbacks: bool = True,
     ) -> None:
         self.registry = registry
         self.policy = policy or RetryPolicy()
         self._sleep = sleep
+        self.use_fallbacks = use_fallbacks
 
     def execute(self, action: Action) -> ToolResult:
         tool = self.registry.get(action.tool)
@@ -144,7 +146,7 @@ class ToolExecutor:
         result = self._attempt(tool, args)
         if result.ok:
             return result
-        fallback_name = self.registry.fallback_for(tool.name)
+        fallback_name = self.registry.fallback_for(tool.name) if self.use_fallbacks else None
         fallback = self.registry.get(fallback_name) if fallback_name else None
         if fallback is None:
             return result
