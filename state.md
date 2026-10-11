@@ -43,6 +43,15 @@ and are pushed (see `checks.md` once written).
     2.83 mean iterations; no_critic 72.2% success, 25% abstention; no_repeat_detector 94.4%
     (2.94 it.); no_progress_detector 94.4% (3.33 it.); naive 80.6% termination, 7/8 loop tasks hit
     the 50-step cap. Re-running gives byte-identical results.json.
+12. Providers (`src/react_agent/llm/{anthropic_llm,openai_llm,providers}.py`): fake-client tests
+    only; never called a live API. `make eval-real` / `--provider auto` print a skip message
+    when no key is set (tested with env vars removed).
+13. CLI (`src/react_agent/cli.py`): `make demo` → success after 1 critic rejection;
+    `react-agent replay` renders the trace. `tests/test_cli.py` passes.
+14. CI (`.github/workflows/ci.yml`): first run failed (`astral-sh/setup-uv@v10` has no floating
+    tag) → pinned v10.3.0 → green (run 38113686142). Runner pinned to ubuntu-24.04.
+15. README with all required sections; `tests/test_docs.py` keeps its ablation table identical
+    to `evals/results.md`. README tool snippet executed end to end successfully.
 
 ## Decisions + reasons
 - Repo name `react-planning-agent` (did not exist).
@@ -64,6 +73,10 @@ and are pushed (see `checks.md` once written).
 - Critic rejections do not count toward the no-progress streak; the rejection cap bounds them.
 - llm_calls field dropped from AgentResult (ambiguous with an LLM critic); bound is asserted on
   ScriptedLLM.calls in the property test instead.
+- AnthropicLLM default model `claude-opus-5` with server-side refusal fallbacks on by default
+  (beta `server-side-fallback-2026-07-01`, `fallbacks="default"`), per the claude-api reference;
+  `refusal_fallbacks=False` opts out. OpenAI-compatible default `gpt-4o-mini`; Ollama `llama3.1`.
+- CI also runs `git diff --exit-code` on eval results to prove determinism.
 - Flaky seeds chosen by enumeration: p=0.5 seed 7 = fail, fail, ok; p=0.7 seed 4 = fail x3.
 
 ## Open issues
@@ -71,4 +84,4 @@ and are pushed (see `checks.md` once written).
   loop); the ablation shows only an iteration/token cost. Reported honestly in the README.
 
 ## Next action
-Add AnthropicLLM and OpenAICompatibleLLM (env-var keys, fake-client tests), then the CLI.
+Run the acceptance checks on a clean clone and write `checks.md`.
