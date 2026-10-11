@@ -1,0 +1,5 @@
+[
+  {"thought": "I think I know this already.", "final_answer": "391"},
+  {"thought": "The critic wants evidence; compute it.", "action": {"tool": "calculator", "args": {"expression": "17 * 23 + 4"}}},
+  {"thought": "The calculator says 395.", "final_answer": "17 * 23 + 4 = 395"}
+]
